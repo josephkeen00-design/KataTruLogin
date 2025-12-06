@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Kata & Tru Login</title>
+
+  <!-- Firebase compat SDKs (easier, use global "firebase" object) -->
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-auth-compat.js"></script>
+
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #f5f5f5;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+    }
+    .login-box {
+      width: 400px;
+      max-width: 95vw;
+      background: white;
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 12px 30px rgba(15, 23, 42, 0.15);
+    }
+    h2 {
+      margin-top: 0;
+      margin-bottom: 6px;
+    }
+    p.subtitle {
+      margin-top: 0;
+      margin-bottom: 18px;
+      font-size: 0.9rem;
+      color: #6b7280;
+    }
+    label {
+      display: block;
+      margin-top: 10px;
+      font-size: 0.85rem;
+      color: #374151;
+    }
+    input {
+      width: 100%;
+      margin-top: 4px;
+      padding: 10px;
+      border-radius: 6px;
+      border: 1px solid #d1d5db;
+      font-size: 0.95rem;
+      box-sizing: border-box;
+    }
+    button {
+      width: 100%;
+      padding: 10px;
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+      margin-top: 10px;
+      font-size: 0.95rem;
+      font-weight: 600;
+    }
+    .email-btn {
+      background: #111827;
+      color: white;
+    }
+    .magic-btn {
+      background: #4b5563;
+      color: white;
+    }
+    .google-btn {
+      background: #ffffff;
+      border: 1px solid #d1d5db;
+      color: #111827;
+    }
+    .otp-btn {
+      background: #2563eb;
+      color: white;
+    }
+    .divider {
+      text-align: center;
+      font-size: 0.8rem;
+      color: #9ca3af;
+      margin: 12px 0;
+      position: relative;
+    }
+    .divider::before,
+    .divider::after {
+      content: "";
+      position: absolute;
+      top: 50%;
+      width: 40%;
+      height: 1px;
+      background: #e5e7eb;
+    }
+    .divider::before { left: 0; }
+    .divider::after { right: 0; }
+    #recaptcha-container {
+      margin-top: 10px;
+      margin-bottom: 4px;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="login-box">
+    <h2>Kata & Tru Login</h2>
+    <p class="subtitle">Secure access for clients, partners &amp; team.</p>
+
+    <!-- EMAIL + PASSWORD -->
+    <label for="email">Email</label>
+    <input id="email" placeholder="you@example.com" type="email" />
+
+    <label for="password">Password</label>
+    <input id="password" placeholder="********" type="password" />
+
+    <button class="email-btn" onclick="emailPasswordLogin()">Sign in with Email</button>
+    <button class="magic-btn" onclick="sendMagicLink()">Send Magic Login Link</button>
+
+    <div class="divider">or continue with</div>
+
+    <!-- PHONE OTP -->
+    <label for="phone">Phone (e.g. +9715xxxxxxx)</label>
+    <input id="phone" placeholder="+9715XXXXXXXX" type="text" />
+    <div id="recaptcha-container"></div>
+    <button class="otp-btn" onclick="sendOTP()">Sign in with OTP</button>
+
+    <!-- GOOGLE -->
+    <button class="google-btn" onclick="googleLogin()">Continue with Google</button>
+  </div>
+
+  <script>
+    // --- Firebase Config (yours) ---
+    const firebaseConfig = {
+      apiKey: "AIzaSyAw9MkcFKG3DKJdiqhGEfu3RfiRHyRGnqk",
+      authDomain: "kataandtruauth.firebaseapp.com",
+      projectId: "kataandtruauth",
+      storageBucket: "kataandtruauth.firebasestorage.app",
+      messagingSenderId: "928371234420",
+      appId: "1:928371234420:web:ea39538d777b874fa3a321",
+      measurementId: "G-3QMPCMRCCT"
+    };
+
+    // Init Firebase (compat)
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+
+    // ---------- EMAIL + PASSWORD ----------
+    function emailPasswordLogin() {
+      const email = document.getElementById("email").value.trim();
+      const password = document.getElementById("password").value;
+
+      if (!email || !password) {
+        alert("Enter both email and password.");
+        return;
+      }
+
+      auth.signInWithEmailAndPassword(email, password)
+        .then((userCred) => redirectAfterLogin(userCred.user))
+        .catch((err) => alert(err.message));
+    }
+
+    // ---------- MAGIC LINK ----------
+    function sendMagicLink() {
+      const email = document.getElementById("email").value.trim();
+      if (!email) {
+        alert("Enter your email first.");
+        return;
+      }
+
+      auth.sendSignInLinkToEmail(email, {
+        url: "https://login.kataandtru.com/login.html",
+        handleCodeInApp: true,
+      })
+      .then(() => alert("Magic login link sent to your email."))
+      .catch((err) => alert(err.message));
+    }
+
+    // ---------- GOOGLE LOGIN ----------
+    function googleLogin() {
+      const provider = new firebase.auth.GoogleAuthProvider();
+      auth.signInWithPopup(provider)
+        .then((result) => redirectAfterLogin(result.user))
+        .catch((err) => alert(err.message));
+    }
+
+    // ---------- PHONE OTP ----------
+    window.recaptchaVerifier = new firebase.auth.RecaptchaVerifier(
+      "recaptcha-container",
+      { size: "normal" }
+    );
+
+    function sendOTP() {
+      const phone = document.getElementById("phone").value.trim();
+      if (!phone) {
+        alert("Enter your phone number.");
+        return;
+      }
+
+      auth.signInWithPhoneNumber(phone, window.recaptchaVerifier)
+        .then((confirmationResult) => {
+          const code = prompt("Enter the OTP sent to your phone:");
+          if (!code) return;
+          return confirmationResult.confirm(code);
+        })
+        .then((result) => {
+          if (result) redirectAfterLogin(result.user);
+        })
+        .catch((err) => alert(err.message));
+    }
+
+    // ---------- REDIRECT AFTER LOGIN ----------
+    function redirectAfterLogin(user) {
+      user.getIdToken().then((token) => {
+        // TODO: change URL below to your Base44 app once ready
+        const target = "https://kata-tru-business-services-fca9acf9.base44.app/?firebase_token=" + token;
+        window.location.href = target;
+      });
+    }
+  </script>
+</body>
+</html>
+Create login.html
